@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply antialiased text-diary-beige-900 bg-diary-beige-50;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Better default focus styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-diary-beige-500 ring-offset-2;
+  }
+
+  /* Improve default scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-diary-beige-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-diary-beige-300 rounded-full hover:bg-diary-beige-400 transition-colors;
+  }
+}
+
+@layer components {
+  /* Card hover effect */
+  .hover-card {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Glass effect background */
+  .glass {
+    @apply bg-white bg-opacity-70 backdrop-blur-md;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-diary-beige-700 to-diary-beige-900;
+  }
+
+  /* Image hover zoom */
+  .image-zoom {
+    @apply overflow-hidden;
+  }
+
+  .image-zoom img {
+    @apply transition-transform duration-500 hover:scale-110;
+  }
+
+  /* Fade in animation */
+  .fade-in {
+    @apply animate-[fadeIn_0.5s_ease-in-out];
+  }
+
+  /* Slide up animation */
+  .slide-up {
+    @apply animate-[slideUp_0.3s_ease-out];
+  }
+}
+
+@layer utilities {
+  /* Text truncate with multiple lines */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    @apply bg-white text-black;
+  }
+
+  .print-content {
+    @apply max-w-full m-0 p-0;
+  }
+}
