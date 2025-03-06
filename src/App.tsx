@@ -126,28 +126,59 @@ function DiaryApp() {
 
   useEffect(() => {
     const checkSession = async () => {
-      // Check for access token in URL
-      const fragment = window.location.hash;
-      const params = new URLSearchParams(fragment.substring(1));
-      const accessToken = params.get('access_token');
-      const type = params.get('type');
+      try {
+        // First check if we have an active session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Check URL parameters first
+        const urlParams = new URLSearchParams(window.location.search);
+        const type = urlParams.get('type');
 
-      if (accessToken && type === 'recovery') {
-        // Set up session for password reset
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: '',
-        });
-        setIsResetPasswordPage(true);
-      } else if (fragment) {
-        // Handle other hash-based navigation
-        if (fragment.includes('#signin')) {
-          setAuthMode('signin');
-        } else if (fragment.includes('#signup')) {
-          setAuthMode('signup');
-        } else if (fragment.includes('#reset-password')) {
-          setAuthMode('reset-password');
+        // Check hash parameters
+        const hash = window.location.hash;
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const typeFromHash = hashParams.get('type');
+
+        // If we have a session but no email confirmation, it's likely an invitation
+        if (session?.user && !session.user.email_confirmed_at) {
+          setIsResetPasswordPage(true);
+          return;
         }
+
+        // Handle recovery or invitation from either URL params or hash
+        if (accessToken && (type === 'recovery' || type === 'invite' || typeFromHash === 'recovery' || typeFromHash === 'invite')) {
+          // Set up session for password reset or invitation
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+
+            if (error) throw error;
+            
+            // Set reset password page state for both recovery and invitation
+            setIsResetPasswordPage(true);
+            // Clear the URL while maintaining the state
+            window.history.replaceState({}, '', window.location.pathname);
+          } catch (error) {
+            console.error('Error setting up password reset/invitation:', error);
+            toast.error('Invalid or expired link. Please request a new one.');
+            setAuthMode('signin');
+            window.location.href = '/#signin';
+          }
+        } else if (hash) {
+          // Handle other hash-based navigation
+          const mode = hash.replace('#', '') as 'signin' | 'signup' | 'reset-password';
+          if (['signin', 'signup', 'reset-password'].includes(mode)) {
+            setAuthMode(mode);
+            setIsResetPasswordPage(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+        toast.error('There was an error checking your session. Please try again.');
       }
     };
 
@@ -292,7 +323,7 @@ function DiaryApp() {
     return (
       <div className="min-h-screen bg-diary-beige-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
-          <UpdatePassword />
+          <ResetPassword />
         </div>
       </div>
     );
@@ -300,66 +331,21 @@ function DiaryApp() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-diary-beige-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
-          {authMode === 'reset-password' ? (
-            <ResetPassword onBack={() => {
-              setAuthMode('signin');
-              window.location.hash = 'signin';
-            }} />
-          ) : (
-            <>
-              <h1 className="text-2xl font-serif font-bold text-diary-beige-900 mb-6 text-center">
-                {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
-              </h1>
-              
+      <div className="min-h-screen bg-diary-beige-50">
               <AuthForm
-                mode={authMode === 'signin' ? 'signin' : 'signup'}
-                onSuccess={(message) => handleAuthSuccess(authMode, message)}
-                onForgotPassword={() => {
-                  setAuthMode('reset-password');
-                  window.location.hash = 'reset-password';
-                }}
-              />
-
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => {
-                    const newMode = authMode === 'signin' ? 'signup' : 'signin';
-                    setAuthMode(newMode);
-                    window.location.hash = newMode;
-                  }}
-                  className="text-diary-beige-600 hover:text-diary-beige-800 text-sm"
-                >
-                  {authMode === 'signin'
-                    ? "Don't have an account? Sign up"
-                    : 'Already have an account? Sign in'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          mode={authMode}
+          onSuccess={handleAuthSuccess}
+          onModeChange={(mode) => {
+            setAuthMode(mode);
+            window.location.hash = `#${mode}`;
+          }}
+        />
       </div>
     );
   }
 
   if (isProfileView) {
-    return (
-      <div className="min-h-screen bg-diary-beige-50">
-        <header className="sticky top-0 z-10 bg-white shadow-sm">
-          <div className="max-w-screen-xl mx-auto px-4 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsProfileView(false)}
-            >
-              Back to Diary
-            </Button>
-          </div>
-        </header>
-        <ProfilePage />
-      </div>
-    );
+    return <ProfilePage onBack={() => setIsProfileView(false)} />;
   }
 
   return (

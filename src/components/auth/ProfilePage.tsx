@@ -16,6 +16,10 @@ interface DeleteAccountModalProps {
   isLoading: boolean;
 }
 
+interface ProfilePageProps {
+  onBack: () => void;
+}
+
 const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({ isOpen, onClose, onConfirm, isLoading }) => {
   const [password, setPassword] = useState('');
 
@@ -75,7 +79,7 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({ isOpen, onClose
   );
 };
 
-export const ProfilePage: React.FC = () => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -199,18 +203,15 @@ export const ProfilePage: React.FC = () => {
       setLoading(true);
       
       // First verify the password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email!,
         password: password,
       });
 
-      if (signInError) {
+      if (signInError || !session) {
         toast.error('Incorrect password. Please try again.');
         return;
       }
-
-      // Sign out first to clear any existing sessions
-      await supabase.auth.signOut();
 
       // Delete user's data in this order:
       // 1. Delete avatar from storage if exists
@@ -228,7 +229,7 @@ export const ProfilePage: React.FC = () => {
         .eq('user_id', user.id);
 
       if (entriesError) {
-        console.error('Error deleting diary entries:', entriesError);
+        throw new Error('Failed to delete diary entries: ' + entriesError.message);
       }
 
       // 3. Delete user's profile
@@ -238,10 +239,10 @@ export const ProfilePage: React.FC = () => {
         .eq('id', user.id);
 
       if (profileError) {
-        console.error('Error deleting profile:', profileError);
+        throw new Error('Failed to delete profile: ' + profileError.message);
       }
 
-      // 4. Delete the user's auth account using session
+      // 4. Delete the user's auth account using RPC
       const { error: deleteError } = await supabase.rpc('delete_user');
 
       if (deleteError) {
@@ -249,6 +250,9 @@ export const ProfilePage: React.FC = () => {
       }
 
       setIsDeleteModalOpen(false);
+      
+      // Sign out the user after successful deletion
+      await supabase.auth.signOut();
       
       toast.success('Your account has been permanently deleted', {
         duration: 5000,
@@ -261,8 +265,10 @@ export const ProfilePage: React.FC = () => {
         }
       });
 
-      // Redirect to home page
-      window.location.href = '/';
+      // Redirect to home page after a short delay to allow the toast to be seen
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
     } catch (error) {
       console.error('Error in handleDeleteAccount:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to delete account. Please try again later.', {
@@ -436,9 +442,19 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-serif font-bold text-diary-beige-900">
-          Profile Settings
-        </h1>
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={onBack}
+            variant="outline"
+            size="sm"
+            className="border-diary-beige-300 text-diary-beige-700 hover:bg-diary-beige-50"
+          >
+            Back to Diary
+          </Button>
+          <h1 className="text-2xl font-serif font-bold text-diary-beige-900">
+            Profile Settings
+          </h1>
+        </div>
         <Button
           onClick={() => signOut()}
           variant="outline"
